@@ -36,7 +36,7 @@ public class KineticBatteryBlock extends DirectionalKineticBlock implements IBE<
     }
 
     @Override
-    public VoxelShape getShape(BlockState blockState, BlockGetter blockGetter, BlockPos blockPos, CollisionContext collisionContext) {
+    public @NotNull VoxelShape getShape(BlockState blockState, @NotNull BlockGetter blockGetter, @NotNull BlockPos blockPos, @NotNull CollisionContext collisionContext) {
         return AllShapes.MOTOR_BLOCK.get(blockState.getValue(FACING));
     }
 
@@ -74,6 +74,9 @@ public class KineticBatteryBlock extends DirectionalKineticBlock implements IBE<
             } else {
                 return InteractionResult.CONSUME;
             }
+
+            // Update block entity
+            if (level.getBlockEntity(blockPos) instanceof KineticBatteryBlockEntity blockEntity) blockEntity.updateGeneratedRotation();
             return InteractionResult.SUCCESS;
         } else {
             return InteractionResult.FAIL;
