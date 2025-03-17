@@ -3,6 +3,7 @@ package nl.teamdiopside.expandingtechnologies.blocks.kinetic_battery;
 import com.jozufozu.flywheel.util.transform.TransformStack;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlocks;
+import com.simibubi.create.content.kinetics.BlockStressValues;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import com.simibubi.create.content.kinetics.motor.CreativeMotorBlockEntity;
 import com.simibubi.create.content.kinetics.motor.KineticScrollValueBehaviour;
@@ -14,25 +15,36 @@ import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.VecHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import nl.teamdiopside.expandingtechnologies.registry.ETBlocks;
 
 import java.util.List;
 
 public class KineticBatteryBlockEntity extends GeneratingKineticBlockEntity {
 
-    public int maxStress;
-    public boolean charging;
+    public double chargingStressBase = 64; // TODO
+    public int maxStoredRotations = 1024; // TODO
+    public int storedRotations = 0;
     public ScrollValueBehaviour generatedSpeed;
 
     public KineticBatteryBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
-        // get max stress from tier
-        maxStress = state.getBlock() == ETBlocks.KINETIC_BATTERY.get() ? 200 : 0;
-        charging = state.getValue(KineticBatteryBlock.CHARGING);
+    }
+
+    public boolean isCharging() {
+        return this.getBlockState().getValue(KineticBatteryBlock.CHARGING);
+    }
+
+    public void setCharging(boolean charging) {
+        this.getBlockState().setValue(KineticBatteryBlock.CHARGING, charging);
+    }
+
+    public int getStoredRotations() {
+        return storedRotations;
     }
 
     @Override
@@ -49,20 +61,26 @@ public class KineticBatteryBlockEntity extends GeneratingKineticBlockEntity {
     @Override
     public void initialize() {
         super.initialize();
-        if (!hasSource() || getGeneratedSpeed() > getTheoreticalSpeed())
+        setCharging(hasSource() && getGeneratedSpeed() < getTheoreticalSpeed() || storedRotations <= 0);
+        if (!isCharging())
             updateGeneratedRotation();
     }
 
     @Override
+    protected Block getStressConfigKey() {
+        return AllBlocks.HAND_CRANK.get();
+    }
+
+    @Override
     public float getGeneratedSpeed() {
-        if (!AllBlocks.CREATIVE_MOTOR.has(getBlockState()))
+        if (isCharging() || storedRotations <= 0)
             return 0;
         return convertToDirection(generatedSpeed.getValue(), getBlockState().getValue(KineticBatteryBlock.FACING));
     }
 
     @Override
     public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
-        if (charging) {
+        if (isCharging()) {
             return false;
         }
         return super.addToGoggleTooltip(tooltip, isPlayerSneaking);
@@ -102,5 +120,17 @@ public class KineticBatteryBlockEntity extends GeneratingKineticBlockEntity {
                 return false;
             return direction.getAxis() != facing.getAxis();
         }
+    }
+
+    @Override
+    protected void write(CompoundTag compound, boolean clientPacket) {
+        compound.putInt("StoredRotations", storedRotations);
+        super.write(compound, clientPacket);
+    }
+
+    @Override
+    protected void read(CompoundTag compound, boolean clientPacket) {
+        super.read(compound, clientPacket);
+        storedRotations = compound.getInt("StoredRotations");
     }
 }

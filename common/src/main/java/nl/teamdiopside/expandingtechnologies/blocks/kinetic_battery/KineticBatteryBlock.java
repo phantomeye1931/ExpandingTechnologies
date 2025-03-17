@@ -1,5 +1,6 @@
 package nl.teamdiopside.expandingtechnologies.blocks.kinetic_battery;
 
+import com.simibubi.create.AllItems;
 import com.simibubi.create.AllShapes;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.foundation.block.IBE;
@@ -8,6 +9,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
@@ -21,6 +23,8 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import nl.teamdiopside.expandingtechnologies.registry.ETBlockEntities;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Objects;
 
 public class KineticBatteryBlock extends DirectionalKineticBlock implements IBE<KineticBatteryBlockEntity> {
 
@@ -37,8 +41,16 @@ public class KineticBatteryBlock extends DirectionalKineticBlock implements IBE<
     }
 
     @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        Direction preferred = getPreferredFacing(context);
+        if ((context.getPlayer() != null && context.getPlayer().isShiftKeyDown()) || preferred == null)
+            return super.getStateForPlacement(context);
+        return defaultBlockState().setValue(FACING, preferred);
+    }
+
+    @Override
     public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
-        return face == state.getValue(FACING).getOpposite();
+        return face == state.getValue(FACING);
     }
 
     @Override
@@ -54,10 +66,18 @@ public class KineticBatteryBlock extends DirectionalKineticBlock implements IBE<
 
     @Override
     public @NotNull InteractionResult use(@NotNull BlockState blockState, @NotNull Level level, @NotNull BlockPos blockPos, @NotNull Player player, @NotNull InteractionHand interactionHand, @NotNull BlockHitResult blockHitResult) {
-        if (interactionHand == InteractionHand.MAIN_HAND) {
-            level.setBlockAndUpdate(blockPos, blockState.setValue(CHARGING, !blockState.getValue(CHARGING)));
+        if (interactionHand == InteractionHand.MAIN_HAND && player.getMainHandItem().is(AllItems.WRENCH.get())) {
+            if (Objects.requireNonNull(this.getBlockEntity(level, blockPos)).getStoredRotations() > 0 && blockState.getValue(CHARGING)) {
+                level.setBlockAndUpdate(blockPos, blockState.setValue(CHARGING, false));
+            } else if (!blockState.getValue(CHARGING)) {
+                level.setBlockAndUpdate(blockPos, blockState.setValue(CHARGING, true));
+            } else {
+                return InteractionResult.CONSUME;
+            }
+            return InteractionResult.SUCCESS;
+        } else {
+            return InteractionResult.FAIL;
         }
-        return InteractionResult.SUCCESS;
     }
 
     @Override
