@@ -3,17 +3,13 @@ package nl.teamdiopside.expandingtechnologies.blocks.kinetic_battery;
 import com.jozufozu.flywheel.util.transform.TransformStack;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllBlocks;
-import com.simibubi.create.content.equipment.armor.BacktankUtil;
-import com.simibubi.create.content.kinetics.BlockStressValues;
 import com.simibubi.create.content.kinetics.KineticNetwork;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
-import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.motor.CreativeMotorBlockEntity;
 import com.simibubi.create.content.kinetics.motor.KineticScrollValueBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
-import com.simibubi.create.foundation.particle.AirParticleData;
 import com.simibubi.create.foundation.utility.AngleHelper;
 import com.simibubi.create.foundation.utility.Lang;
 import com.simibubi.create.foundation.utility.VecHelper;
@@ -22,16 +18,12 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
-import java.util.Map;
 
 public class KineticBatteryBlockEntity extends GeneratingKineticBlockEntity {
 
@@ -73,7 +65,6 @@ public class KineticBatteryBlockEntity extends GeneratingKineticBlockEntity {
     @Override
     public void initialize() {
         super.initialize();
-        setCharging(hasSource() && getGeneratedSpeed() < getTheoreticalSpeed() || storedRotations <= 0);
         if (!isCharging())
             updateGeneratedRotation();
     }
@@ -85,8 +76,7 @@ public class KineticBatteryBlockEntity extends GeneratingKineticBlockEntity {
 
     @Override
     public float getGeneratedSpeed() {
-        if (isCharging() || storedRotations <= 0)
-            return 0;
+        if (isCharging() || storedRotations <= 0) return 0;
         return convertToDirection(generatedSpeed.getValue(), getBlockState().getValue(KineticBatteryBlock.FACING));
     }
 
@@ -123,7 +113,20 @@ public class KineticBatteryBlockEntity extends GeneratingKineticBlockEntity {
         // Calculate ticks per revolution
         float speed = Math.abs(getSpeed());
         if (speed == 0) return;
-        if (Math.abs(speed - previousSpeed) > 0.001f) rotationTickCounter = 0;
+        if (Math.abs(speed - previousSpeed) > 0.001f) {
+            rotationTickCounter = 0;
+            // TODO stress impact when charging
+//            if (isCharging() && hasNetwork()) {
+//                KineticNetwork kineticNetwork = getOrCreateNetwork();
+//                if (kineticNetwork != null) {
+//                    notifyStressCapacityChange(0);
+//                    kineticNetwork.remove(this);
+//                    kineticNetwork.updateStressFor(this, calculateStressApplied());
+//                    kineticNetwork.updateNetwork();
+//                    sendData();
+//                }
+//            }
+        }
         previousSpeed = speed;
         float tpr = 1200 / speed; // Ticks per revolution
         rotationTickCounter++;
@@ -146,6 +149,10 @@ public class KineticBatteryBlockEntity extends GeneratingKineticBlockEntity {
         rotationTickCounter = 0;
     }
 
+    public boolean mayStartDischarging() {
+        return isCharging() && Math.abs(convertToDirection(generatedSpeed.getValue(), getBlockState().getValue(KineticBatteryBlock.FACING))) > Math.abs(getTheoreticalSpeed()) && getStoredRotations() > 0;
+    }
+
     static class SpeedBox extends ValueBoxTransform.Sided {
 
         @Override
@@ -156,8 +163,7 @@ public class KineticBatteryBlockEntity extends GeneratingKineticBlockEntity {
         @Override
         public Vec3 getLocalOffset(BlockState state) {
             Direction facing = state.getValue(KineticBatteryBlock.FACING);
-            return super.getLocalOffset(state).add(Vec3.atLowerCornerOf(facing.getNormal())
-                    .scale(-1 / 16f));
+            return super.getLocalOffset(state).add(Vec3.atLowerCornerOf(facing.getNormal()).scale(-1 / 16f));
         }
 
         @Override
@@ -168,15 +174,13 @@ public class KineticBatteryBlockEntity extends GeneratingKineticBlockEntity {
                 return;
             if (getSide() != Direction.UP)
                 return;
-            TransformStack.cast(ms)
-                    .rotateZ(-AngleHelper.horizontalAngle(facing) + 180);
+            TransformStack.cast(ms).rotateZ(-AngleHelper.horizontalAngle(facing) + 180);
         }
 
         @Override
         protected boolean isSideActive(BlockState state, Direction direction) {
             Direction facing = state.getValue(KineticBatteryBlock.FACING);
-            boolean charging = state.getValue(KineticBatteryBlock.CHARGING);
-            if (facing.getAxis() != Direction.Axis.Y && direction == Direction.DOWN || charging)
+            if (facing.getAxis() != Direction.Axis.Y && direction == Direction.DOWN)
                 return false;
             return direction.getAxis() != facing.getAxis();
         }

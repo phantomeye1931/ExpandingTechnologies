@@ -2,10 +2,14 @@ package nl.teamdiopside.expandingtechnologies.blocks.kinetic_battery;
 
 import com.simibubi.create.AllItems;
 import com.simibubi.create.AllShapes;
+import com.simibubi.create.Create;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.foundation.block.IBE;
+import com.simibubi.create.foundation.utility.Components;
+import com.simibubi.create.foundation.utility.Lang;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -21,10 +25,13 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import nl.teamdiopside.expandingtechnologies.ExpandingTechnologies;
 import nl.teamdiopside.expandingtechnologies.registry.ETBlockEntities;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
+
+import static com.simibubi.create.foundation.utility.Lang.resolveBuilders;
 
 public class KineticBatteryBlock extends DirectionalKineticBlock implements IBE<KineticBatteryBlockEntity> {
 
@@ -67,16 +74,18 @@ public class KineticBatteryBlock extends DirectionalKineticBlock implements IBE<
     @Override
     public @NotNull InteractionResult use(@NotNull BlockState blockState, @NotNull Level level, @NotNull BlockPos blockPos, @NotNull Player player, @NotNull InteractionHand interactionHand, @NotNull BlockHitResult blockHitResult) {
         if (interactionHand == InteractionHand.MAIN_HAND && player.getMainHandItem().is(AllItems.WRENCH.get())) {
-            if (Objects.requireNonNull(this.getBlockEntity(level, blockPos)).getStoredRotations() > 0 && blockState.getValue(CHARGING)) {
+            KineticBatteryBlockEntity blockEntity = Objects.requireNonNull(this.getBlockEntity(level, blockPos));
+            if (blockEntity.mayStartDischarging()) {
                 level.setBlockAndUpdate(blockPos, blockState.setValue(CHARGING, false));
             } else if (!blockState.getValue(CHARGING)) {
                 level.setBlockAndUpdate(blockPos, blockState.setValue(CHARGING, true));
             } else {
-                return InteractionResult.CONSUME;
+                if (blockState.getValue(CHARGING)) player.displayClientMessage(Component.literal("Can't discharge now!"), true); // TODO DEZE STRING VERANDEREN EN TRANSLATABLE, battery empty en battery not fast enough ofzo
+                return InteractionResult.SUCCESS;
             }
 
             // Update block entity
-            if (level.getBlockEntity(blockPos) instanceof KineticBatteryBlockEntity blockEntity) blockEntity.updateGeneratedRotation();
+            blockEntity.updateGeneratedRotation();
             return InteractionResult.SUCCESS;
         } else {
             return InteractionResult.FAIL;
