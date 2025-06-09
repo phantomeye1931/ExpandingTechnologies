@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "expandingtechnologies:block/door_controller"
+    }
+  }
+}

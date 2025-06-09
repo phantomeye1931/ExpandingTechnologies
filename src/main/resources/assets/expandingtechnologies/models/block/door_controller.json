@@ -1,0 +1,7 @@
+{
+	"parent": "minecraft:block/cube_column",
+	"textures": {
+		"end": "expandingtechnologies:block/railroad_light_controller_top",
+		"side": "expandingtechnologies:block/railroad_light_controller_side_off"
+	}
+}
