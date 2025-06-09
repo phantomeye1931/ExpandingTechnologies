@@ -1,10 +1,14 @@
 {
   "multipart": [
     {
+      "apply": {
+        "model": "expandingtechnologies:block/door_controller_base"
+      }
+    },
+    {
       "when": "north=true",
       "apply": {
-        "model": "expandingtechnologies:block/door_controller_overlay",
-        "y": 0
+        "model": "expandingtechnologies:block/door_controller_overlay"
       }
     },
     {
